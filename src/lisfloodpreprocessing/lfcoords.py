@@ -19,7 +19,7 @@ def main():
         """
     )
     parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the configuration file')
-    parser.add_argument('-r', '--reservoirs', action='store_true', default=True,
+    parser.add_argument('-r', '--reservoirs', action='store_true', default=False,
                         help='Define the points in the input CSV file as reservoirs')
     args = parser.parse_args()
     
