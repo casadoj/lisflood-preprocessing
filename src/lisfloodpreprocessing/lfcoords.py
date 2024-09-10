@@ -3,7 +3,7 @@ import pandas as pd
 import argparse
 import logging
 
-from lisfloodpreprocessing import Config
+from lisfloodpreprocessing import Config, read_input_files
 from lisfloodpreprocessing.utils import find_conflicts
 from lisfloodpreprocessing.finer_grid import coordinates_fine
 from lisfloodpreprocessing.coarser_grid import coordinates_coarse
@@ -38,24 +38,33 @@ def main():
     # read configuration
     cfg = Config(args.config_file)
     
-    # find coordinates in high resolution
-    points_HR = coordinates_fine(cfg, save=True)
+    # read input files
+    inputs = read_input_files(cfg)
     
-    # find duplicates in high resolution
+    # find coordinates in high resolution
+    points_HR = coordinates_fine(cfg,
+                                 points=inputs['points'],
+                                 ldd_fine=inputs['ldd_fine'],
+                                 upstream_fine=inputs['upstream_fine'],
+                                 save=True)
+    
+    # find conflicts in high resolution
     find_conflicts(points_HR,
                    columns=[f'{var}_{cfg.FINE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER_FINE / 'conflicts.shp')
+                   save=cfg.OUTPUT_FOLDER_FINE / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
     
     # find coordinates in LISFLOOD
     points_LR = coordinates_coarse(cfg,
-                                   points_HR,
+                                   points=points_HR,
+                                   ldd_coarse=inputs['ldd_coarse'],
+                                   upstream_coarse=inputs['upstream_coarse'],
                                    reservoirs=args.reservoirs,
                                    save=True)
     
-    # find duplicates in LISFLOOD
+    # find conflicts in LISFLOOD
     find_conflicts(points_HR,
                    columns=[f'{var}_{cfg.COARSE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER_COARSE / 'conflicts.shp')
+                   save=cfg.OUTPUT_FOLDER_COARSE / f'conflicts{cfg.COARSE_RESOLUTION}.shp')
 
 if __name__ == "__main__":
     main()
