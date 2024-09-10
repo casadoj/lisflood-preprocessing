@@ -3,11 +3,12 @@ os.environ['USE_PYGEOS'] = '0'
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from shapely.geometry import Point
 import rioxarray
 import pyflwdir
 from pathlib import Path
 from tqdm import tqdm
-from typing import Optional
+from typing import Optional, Union
 import logging
 import warnings
 warnings.filterwarnings("ignore")
@@ -25,9 +26,9 @@ def coordinates_coarse(
     points: pd.DataFrame,
     reservoirs: bool = False,
     save: bool = True
-) -> Optional[pd.DataFrame]:
+) -> Optional[gpd.GeoDataFrame]:
     """
-    Transforms station coordinates from a high-resolution grid to a corresponding location in a coarser grid, aiming to match the shape of the catchment area derived from the high-resolution map. It updates the station coordinates and exports the catchment areas as shapefiles in the coarser grid.
+    Transforms point coordinates from a high-resolution grid to a corresponding location in a coarser grid, aiming to match the shape of the catchment area derived from the high-resolution map. It updates the station coordinates and exports the catchment areas as shapefiles in the coarser grid.
 
     The function reads the upstream area map and local drainage direction (LDD) map in the coarse grid. It then finds the pixel in the coarse grid that best matches the catchment shape derived from the high-resolution map. The match is evaluated based on the intersection-over-union of catchment shapes and the ratio of upstream areas.
 
@@ -39,14 +40,13 @@ def coordinates_coarse(
         DataFrame containing station coordinates and upstream areas in the finer grid. It's the result of coarse_grid.coarse_grid()
     reservoirs: bool
         Whether the points are reservoirs or not. If True, the resulting coordinates refer to one pixel downstream of the actual solution, a deviation required by the LISFLOOD reservoir simulation
-    save: bool
-        If True, the updated points table is saved to a CSV file.
-        If False, the updated points DataFrame is returned without saving.
+    save: boolean
+        If True, the updated table of points is exported as a shapefile.
 
     Returns:
     --------
-    points: pandas.DataFrame
-        If save is False, returns a pandas DataFrame with updated station coordinates and upstream areas in the coarser grid. Otherwise, the function returns None, and the results are saved directly to a CSV file.
+    points: geopandas.GeoDataFrame
+        A pandas DataFrame with updated station coordinates and upstream areas in the coarser grid.
     """
 
     ### READ INPUTS
@@ -75,7 +75,7 @@ def coordinates_coarse(
     # resolution of the input maps
     cellsize = np.round(np.mean(np.diff(ldd_coarse.x)), 6) # degrees
     cellsize_arcmin = int(np.round(cellsize * 60, 0)) # arcmin
-    suffix_coarse = f'{cellsize_arcmin}min'
+    cfg.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
     logger.info(f'Coarse resolution is {cellsize_arcmin} arcminutes')
 
     # extract resolution of the finer grid from 'points'
@@ -83,13 +83,13 @@ def coordinates_coarse(
     cols_fine = [f'{col}_{suffix_fine}' for col in ['area', 'lat', 'lon']]
 
     # add new columns to 'points'
-    cols_coarse = [f'{col}_{suffix_coarse}' for col in ['area', 'lat', 'lon']]
+    cols_coarse = [f'{col}_{cfg.COARSE_RESOLUTION}' for col in ['area', 'lat', 'lon']]
     points[cols_coarse] = np.nan
 
     # output folders
-    SHAPE_FOLDER_FINE = cfg.SHAPE_FOLDER / suffix_fine
-    SHAPE_FOLDER_COARSE = cfg.SHAPE_FOLDER / suffix_coarse
-    SHAPE_FOLDER_COARSE.mkdir(parents=True, exist_ok=True)
+    # cfg.OUTPUT_FOLDER_FINE = cfg.OUTPUT_FOLDER / suffix_fine
+    cfg.OUTPUT_FOLDER_COARSE = cfg.OUTPUT_FOLDER / cfg.COARSE_RESOLUTION
+    cfg.OUTPUT_FOLDER_COARSE.mkdir(parents=True, exist_ok=True)
 
     # search range of 5x5 array -> this is where the best point can be found in the coarse grid
     rangexy = np.linspace(-2, 2, 5) * cellsize # arcmin
@@ -106,7 +106,7 @@ def coordinates_coarse(
             continue
 
         # import shapefile of catchment polygon
-        shapefile = SHAPE_FOLDER_FINE / f'{ID}.shp'
+        shapefile = cfg.OUTPUT_FOLDER_FINE / f'{ID}.shp'
         try:
             basin_fine = gpd.read_file(shapefile)
             logger.info(f'Catchment polygon correctly read: {shapefile}')
@@ -182,22 +182,26 @@ def coordinates_coarse(
         basin_coarse[cols_coarse] = area_coarse, lat_coarse, lon_coarse
 
         # export shapefile
-        output_shp = SHAPE_FOLDER_COARSE / f'{ID}.shp'
+        output_shp = cfg.OUTPUT_FOLDER_COARSE / f'{ID}.shp'
         basin_coarse.to_file(output_shp)
         logger.info(f'Catchment {ID} exported as shapefile: {output_shp}')
 
         # move the result one pixel downstream, in case of reservoir
         if reservoirs:
-            lat_coarse, lon_coarse = downstream_pixel(lat_coarse, lon_coarse, upstream_coarse)
+            lat_coarse, lon_coarse = downstream_pixel(lat_coarse, lon_coarse, ldd_coarse)
             
         # update new columns in 'points'
         points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
     
-    # return/save
+    # convert to geopandas
+    geometry = [Point(xy) for xy in zip(points[f'lon_{cfg.COARSE_RESOLUTION}'], points[f'lat_{cfg.COARSE_RESOLUTION}'])]
+    points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
+    
+    # return (save)
     points.sort_index(axis=1, inplace=True)
-    if save:
-        output_csv = cfg.POINTS.parent / f'{cfg.POINTS.stem}_{suffix_coarse}.csv'
-        points.to_csv(output_csv)
-        logger.info(f'The updated points table in the coarser grid has been exported to: {output_csv}')
-    else:
-        return points
+    if save is True:
+        shp_file = cfg.OUTPUT_FOLDER_COARSE / f'{cfg.POINTS.stem}_{cfg.COARSE_RESOLUTION}.shp'
+        points.to_file(shp_file)
+        logger.info(f'The updated points table in the coarser grid has been exported to: {shp_file}')
+
+    return points
