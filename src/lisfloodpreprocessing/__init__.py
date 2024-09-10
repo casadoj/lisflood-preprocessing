@@ -25,9 +25,15 @@ class Config:
         self.LDD_COARSE = Path(config['input']['ldd_coarse'])
         self.UPSTREAM_COARSE = Path(config['input']['upstream_coarse'])
         
+        # resolutions
+        self.FINE_RESOLUTION = None
+        self.COARSE_RESOLUTION = None
+        
         # output
-        self.SHAPE_FOLDER = Path(config.get('output_folder', './shapefiles'))
-        self.SHAPE_FOLDER.mkdir(parents=True, exist_ok=True)
+        self.OUTPUT_FOLDER = Path(config.get('output_folder', './shapefiles'))
+        self.OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+        self.OUTPUT_FOLDER_FINE = None
+        self.OUTPUT_FOLDER_COARSE = None
         
         # conditions
         self.MIN_AREA = config['conditions'].get('min_area', 10)
