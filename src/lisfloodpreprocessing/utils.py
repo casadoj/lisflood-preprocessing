@@ -226,8 +226,8 @@ def find_conflicts(
         n_conflicts = len(duplicates[columns[0]].unique())
         logger.warning(f'There are {n_conflicts} conflicts in which reservoirs are located at the same pixel in the finer grid')
         
-    if save is not None:
-        duplicates.to_file(save)
-        logger.info(f'The conflicting points were saved in {save}')
-    else:
-        return duplicates
+        if save is not None:
+            duplicates.to_file(save)
+            logger.info(f'The conflicting points were saved in {save}')
+        else:
+            return duplicates
