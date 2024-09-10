@@ -86,7 +86,8 @@ All maps can be provided either in TIFF or NetCDF format.
 
 The tool saves the outputs in the folder specified in the configuration file (`output_folder`). Within this folder, the tool will create a series of shapefiles:
 
-* Intermediate results for the finer grid:
+* Intermediate results:
+    * *<INPUT_FILENAME>.shp* is a point shapefile with the original location of the input points.
     * *<INPUT_FILENAME>_<FINE_RESOLUTION>.shp* is a point shapefile with the updated location of the input points in the finer grid.
     * *catchments_<FINE_RESOLUTION>.shp* is a polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid.
     
