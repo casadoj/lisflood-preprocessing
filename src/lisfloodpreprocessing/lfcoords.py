@@ -42,29 +42,30 @@ def main():
     inputs = read_input_files(cfg)
     
     # find coordinates in high resolution
-    points_HR = coordinates_fine(cfg,
-                                 points=inputs['points'],
-                                 ldd_fine=inputs['ldd_fine'],
-                                 upstream_fine=inputs['upstream_fine'],
-                                 save=True)
+    points_HR, polygons_HR = coordinates_fine(cfg,
+                                              points=inputs['points'],
+                                              ldd_fine=inputs['ldd_fine'],
+                                              upstream_fine=inputs['upstream_fine'],
+                                              save=True)
     
     # find conflicts in high resolution
     find_conflicts(points_HR,
                    columns=[f'{var}_{cfg.FINE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER_FINE / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
+                   save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
     
     # find coordinates in LISFLOOD
-    points_LR = coordinates_coarse(cfg,
-                                   points=points_HR,
-                                   ldd_coarse=inputs['ldd_coarse'],
-                                   upstream_coarse=inputs['upstream_coarse'],
-                                   reservoirs=args.reservoirs,
-                                   save=True)
+    points_LR, polygons_LR = coordinates_coarse(cfg,
+                                                points_fine=points_HR,
+                                                polygons_fine=polygons_HR,
+                                                ldd_coarse=inputs['ldd_coarse'],
+                                                upstream_coarse=inputs['upstream_coarse'],
+                                                reservoirs=args.reservoirs,
+                                                save=True)
     
     # find conflicts in LISFLOOD
-    find_conflicts(points_HR,
+    find_conflicts(points_LR,
                    columns=[f'{var}_{cfg.COARSE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER_COARSE / f'conflicts{cfg.COARSE_RESOLUTION}.shp')
+                   save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.COARSE_RESOLUTION}.shp')
 
 if __name__ == "__main__":
     main()
