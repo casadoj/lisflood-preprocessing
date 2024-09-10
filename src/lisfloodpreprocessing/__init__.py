@@ -1,8 +1,12 @@
+import os
+os.environ['USE_PYGEOS'] = '0'
 import yaml
 from pathlib import Path
 from typing import Union, Dict
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
 import xarray as xr
 import rioxarray
 import logging
@@ -43,8 +47,6 @@ class Config:
         # output
         self.OUTPUT_FOLDER = Path(config.get('output_folder', './shapefiles'))
         self.OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
-        self.OUTPUT_FOLDER_FINE = None
-        self.OUTPUT_FOLDER_COARSE = None
         
         # conditions
         self.MIN_AREA = config['conditions'].get('min_area', 10)
@@ -66,15 +68,12 @@ def read_input_files(
     Returns:
     --------
     inputs: dictionary
-        * 'points': pandas.DataFrame of input points
+        * 'points': geopandas.GeoDataFrame of input points
         * 'ldd_fine': xarray.DataArray of local drainaige directions in the fine grid
         * 'upstream_fine': xarray.DataArray of upstream area (km2) in the fine grid
         * 'ldd_coarse': xarray.DataArray of local drainaige directions in the coarse grid
         * 'upstream_coarse': xarray.DataArray of upstream area (m2) in the coarse grid
     """
-    # read points text file
-    points = pd.read_csv(cfg.POINTS, index_col='ID')
-    logger.info(f'Table of points correctly read: {cfg.POINTS}')
     
     # read upstream map with fine resolution
     upstream_fine = rioxarray.open_rasterio(cfg.UPSTREAM_FINE).squeeze(dim='band')
@@ -91,6 +90,18 @@ def read_input_files(
     # read local drainage direction map
     ldd_coarse = rioxarray.open_rasterio(cfg.LDD_COARSE).squeeze(dim='band')
     logger.info(f'Map of local drainage directions in the coarser grid correctly read: {cfg.LDD_COARSE}')
+    
+    # read points text file
+    points = pd.read_csv(cfg.POINTS, index_col='ID')
+    points.columns = points.columns.str.lower()
+    logger.info(f'Table of points correctly read: {cfg.POINTS}')
+    # convert to geopandas and export as shapefile
+    points = gpd.GeoDataFrame(points,
+                              geometry=[Point(xy) for xy in zip(points['lon'], points['lat'])],
+                              crs=ldd_coarse.rio.crs)
+    point_shp = cfg.OUTPUT_FOLDER / f'{cfg.POINTS.stem}.shp'
+    points.to_file(point_shp)
+    logger.info(f'The original points table has been exported to: {point_shp}')
     
     inputs = {
         'points': points,
@@ -129,13 +140,9 @@ def update_config(
     cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
     logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
     cfg.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
-    cfg.OUTPUT_FOLDER_FINE = cfg.OUTPUT_FOLDER / cfg.FINE_RESOLUTION
-    cfg.OUTPUT_FOLDER_FINE.mkdir(parents=True, exist_ok=True)
     
     # resolution of the input maps
     cellsize = np.round(np.mean(np.diff(coarse_grid.x)), 6) # degrees
     cellsize_arcmin = int(np.round(cellsize * 60, 0)) # arcmin
     logger.info(f'The resolution of the coarser grid is {cellsize_arcmin} arcminutes')
     cfg.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
-    cfg.OUTPUT_FOLDER_COARSE = cfg.OUTPUT_FOLDER / cfg.COARSE_RESOLUTION
-    cfg.OUTPUT_FOLDER_COARSE.mkdir(parents=True, exist_ok=True)
