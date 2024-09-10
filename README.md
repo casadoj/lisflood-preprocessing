@@ -87,12 +87,12 @@ All maps can be provided either in TIFF or NetCDF format.
 The tool saves the outputs in the folder specified in the configuration file (`output_folder`). Within this folder, the tool will create a series of shapefiles:
 
 * Intermediate results for the finer grid:
-    * `<INPUT_FILENAME>_<FINE_RESOLUTION>.shp` is a point shapefile with the updated location of the input points in the finer grid.
-    * _catchments_<FINE_RESOLUTION>.shp_ is a polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid.
+    * *<INPUT_FILENAME>_<FINE_RESOLUTION>.shp* is a point shapefile with the updated location of the input points in the finer grid.
+    * *catchments_<FINE_RESOLUTION>.shp* is a polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid.
     
 * Final results for the LISFLOOD grid:
-    * _<INPUT_FILENAME>_<COARSE_RESOLUTION>.shp_ is a point shapefile with the updated location of the input points in the LISFLOOD grid.
-    * _catchments_<COARSE_RESOLUTION>.shp_ is a polygon shapefile with the catchment polygons delineated for each of the input points in the LISFLOOD grid.
+    * *<INPUT_FILENAME>_<COARSE_RESOLUTION>.shp* is a point shapefile with the updated location of the input points in the LISFLOOD grid.
+    * *catchments_<COARSE_RESOLUTION>.shp* is a polygon shapefile with the catchment polygons delineated for each of the input points in the LISFLOOD grid.
 
 The final SHP point layer contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
 
@@ -103,4 +103,4 @@ ID,area,area_3min,area_3sec,lat,lat_3min,lat_3sec,lon,lon_3min,lon_3sec
 439,37687,37540,37605,48.88,48.925,48.879583,12.747,12.675,12.74625
 ```
 
-The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, the tool will create another shapefile (_conflicts_<RESOLUTION>.shp_) with only the conflicting points, so that the user can fix the issue manually.
+The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, the tool will create another shapefile (*conflicts_<RESOLUTION>.shp*) with only the conflicting points, so that the user can fix the issue manually.
