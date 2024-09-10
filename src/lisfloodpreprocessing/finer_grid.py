@@ -1,10 +1,14 @@
+import os
+os.environ['USE_PYGEOS'] = '0'
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
 import rioxarray
 import pyflwdir
 from tqdm import tqdm
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import logging
 import warnings
 warnings.filterwarnings("ignore")
@@ -19,10 +23,10 @@ logger = logging.getLogger(__name__)
 
 def coordinates_fine(
     cfg: Config,
-    save: bool = True
-) -> Optional[pd.DataFrame]:
+    save: bool = False
+) -> Optional[gpd.GeoDataFrame]:
     """
-    Processes station coordinates to find the most accurate pixel in a high-resolution map, 
+    Processes point coordinates to find the most accurate pixel in a high-resolution map, 
     based on a reference value of catchment area. It updates the station coordinates and 
     exports the catchment areas as shapefiles.
 
@@ -37,13 +41,13 @@ def coordinates_fine(
     -----------
     cfg: Config
         Configuration object containing file paths and parameters specified in  the configuration file.
-    save: bool
-        If True, the updated points table is saved to a CSV file. If False, the updated points DataFrame is returned without saving.
+    save: boolean
+        If True, the updated table of points is exported as a shapefile.
         
     Returns:
     --------
-    points: pandas.DataFrame
-        If save is False, returns a pandas DataFrame with updated station coordinates and upstream areas in the finer grid. Otherwise, the function returns None, and the results are saved directly to a CSV file.
+    points: geopandas.GeoDataFrame
+        A table with updated station coordinates and upstream areas in the finer grid.
     """
     
     # READ INPUTS
@@ -66,11 +70,11 @@ def coordinates_fine(
     # resolution of the input map
     cellsize = np.mean(np.diff(upstream_fine.x)) # degrees
     cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
-    suffix_fine = f'{cellsize_arcsec}sec'
+    cfg.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
     logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
     
     # add columns to the table of points
-    new_cols = sorted([f'{col}_{suffix_fine}' for col in points.columns])
+    new_cols = sorted([f'{col}_{cfg.FINE_RESOLUTION}' for col in points.columns])
     points[new_cols] = np.nan
 
     # create river network
@@ -81,8 +85,8 @@ def coordinates_fine(
                                     latlon=True)
 
     # output path
-    SHAPE_FOLDER_FINE = cfg.SHAPE_FOLDER / suffix_fine
-    SHAPE_FOLDER_FINE.mkdir(parents=True, exist_ok=True)
+    cfg.OUTPUT_FOLDER_FINE = cfg.OUTPUT_FOLDER / cfg.FINE_RESOLUTION
+    cfg.OUTPUT_FOLDER_FINE.mkdir(parents=True, exist_ok=True)
 
     for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):  
 
@@ -116,15 +120,19 @@ def coordinates_fine(
         basin_gdf[attrs.index] = attrs.values
 
         # export shape file
-        output_file = SHAPE_FOLDER_FINE / f'{ID}.shp'
+        output_file = cfg.OUTPUT_FOLDER_FINE / f'{ID}.shp'
         basin_gdf.to_file(output_file)
         logger.info(f'Catchment {ID} exported as shapefile: {output_file}')
     
-    # return/save
+    # convert to geopandas
+    geometry = [Point(xy) for xy in zip(points[f'lon_{cfg.FINE_RESOLUTION}'], points[f'lat_{cfg.FINE_RESOLUTION}'])]
+    points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
+    
+    # return (save)
     points.sort_index(axis=1, inplace=True)
-    if save:
-        output_csv = cfg.POINTS.parent / f'{cfg.POINTS.stem}_{suffix_fine}.csv'
-        points.to_csv(output_csv)
-        logger.info(f'The updated points table in the finer grid has been exported to: {output_csv}')
-    else: 
-        return points
+    if save is True:
+        shp_file = cfg.OUTPUT_FOLDER_FINE / f'{cfg.POINTS.stem}_{cfg.FINE_RESOLUTION}.shp'
+        points.to_file(shp_file)
+        logger.info(f'The updated points table in the finer grid has been exported to: {shp_file}')
+        
+    return points
