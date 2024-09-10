@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
+import xarray as xr
 import rioxarray
 import pyflwdir
 from pathlib import Path
@@ -24,6 +25,8 @@ logger = logging.getLogger(__name__)
 def coordinates_coarse(
     cfg: Config,
     points: pd.DataFrame,
+    ldd_coarse: xr.DataArray,
+    upstream_coarse: xr.DataArray,
     reservoirs: bool = False,
     save: bool = True
 ) -> Optional[gpd.GeoDataFrame]:
@@ -37,7 +40,11 @@ def coordinates_coarse(
     cfg: Config
         Configuration object containing file paths and parameters specified in the configuration file.
     points: pandas.DataFrame
-        DataFrame containing station coordinates and upstream areas in the finer grid. It's the result of coarse_grid.coarse_grid()
+        DataFrame containing station coordinates and upstream areas in the finer grid. It's the result of `coarse_grid.coarse_grid()`
+    ldd_coarse: xarray.DataArray
+        Map of local drainaige directions in the coarse grid
+    upstream_coarse: xarray.DataArray
+        Map of upstream area (m2) in the coarse grid
     reservoirs: bool
         Whether the points are reservoirs or not. If True, the resulting coordinates refer to one pixel downstream of the actual solution, a deviation required by the LISFLOOD reservoir simulation
     save: boolean
@@ -48,19 +55,6 @@ def coordinates_coarse(
     points: geopandas.GeoDataFrame
         A pandas DataFrame with updated station coordinates and upstream areas in the coarser grid.
     """
-
-    ### READ INPUTS
-
-    # read upstream area map of coarse grid
-    upstream_coarse = rioxarray.open_rasterio(cfg.UPSTREAM_COARSE).squeeze(dim='band')
-    logger.info(f'Map of upstream area corretly read: {cfg.UPSTREAM_COARSE}')
-
-    # read local drainage direction map
-    ldd_coarse = rioxarray.open_rasterio(cfg.LDD_COARSE).squeeze(dim='band')
-    logger.info(f'Map of local drainage directions correctly read: {cfg.LDD_COARSE}')
-
-
-    ### PROCESSING
     
     # create river network
     fdir_coarse = pyflwdir.from_array(ldd_coarse.data,
@@ -75,21 +69,16 @@ def coordinates_coarse(
     # resolution of the input maps
     cellsize = np.round(np.mean(np.diff(ldd_coarse.x)), 6) # degrees
     cellsize_arcmin = int(np.round(cellsize * 60, 0)) # arcmin
-    cfg.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
-    logger.info(f'Coarse resolution is {cellsize_arcmin} arcminutes')
+    # cfg.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
+    coarse_resolution = f'{cellsize_arcmin}min'
 
     # extract resolution of the finer grid from 'points'
-    suffix_fine = sorted(set([col.split('_')[1] for col in points.columns if '_' in col]))[0]
-    cols_fine = [f'{col}_{suffix_fine}' for col in ['area', 'lat', 'lon']]
+    cols_fine = [f'{col}_{cfg.FINE_RESOLUTION}' for col in ['area', 'lat', 'lon']]
 
     # add new columns to 'points'
-    cols_coarse = [f'{col}_{cfg.COARSE_RESOLUTION}' for col in ['area', 'lat', 'lon']]
+    cols_coarse = [f'{col}_{coarse_resolution}' for col in ['area', 'lat', 'lon']]
     points[cols_coarse] = np.nan
 
-    # output folders
-    # cfg.OUTPUT_FOLDER_FINE = cfg.OUTPUT_FOLDER / suffix_fine
-    cfg.OUTPUT_FOLDER_COARSE = cfg.OUTPUT_FOLDER / cfg.COARSE_RESOLUTION
-    cfg.OUTPUT_FOLDER_COARSE.mkdir(parents=True, exist_ok=True)
 
     # search range of 5x5 array -> this is where the best point can be found in the coarse grid
     rangexy = np.linspace(-2, 2, 5) * cellsize # arcmin
@@ -99,7 +88,7 @@ def coordinates_coarse(
         area_ref = attrs['area']
 
         # coordinates and upstream area in the fine grid
-        lat_fine, lon_fine, area_fine = attrs[[f'{col}_{suffix_fine}' for col in ['lat', 'lon', 'area']]]
+        lat_fine, lon_fine, area_fine = attrs[[f'{col}_{cfg.FINE_RESOLUTION}' for col in ['lat', 'lon', 'area']]]
 
         if (area_ref < cfg.MIN_AREA) or (area_fine < cfg.MIN_AREA):
             logger.warning(f'The catchment area of station {ID} is smaller than the minimum of {cfg.MIN_AREA} km2')
@@ -194,13 +183,13 @@ def coordinates_coarse(
         points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
     
     # convert to geopandas
-    geometry = [Point(xy) for xy in zip(points[f'lon_{cfg.COARSE_RESOLUTION}'], points[f'lat_{cfg.COARSE_RESOLUTION}'])]
+    geometry = [Point(xy) for xy in zip(points[f'lon_{coarse_resolution}'], points[f'lat_{coarse_resolution}'])]
     points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
     
     # return (save)
     points.sort_index(axis=1, inplace=True)
     if save is True:
-        shp_file = cfg.OUTPUT_FOLDER_COARSE / f'{cfg.POINTS.stem}_{cfg.COARSE_RESOLUTION}.shp'
+        shp_file = cfg.OUTPUT_FOLDER_COARSE / f'{cfg.POINTS.stem}_{coarse_resolution}.shp'
         points.to_file(shp_file)
         logger.info(f'The updated points table in the coarser grid has been exported to: {shp_file}')
 
