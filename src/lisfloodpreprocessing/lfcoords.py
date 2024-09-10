@@ -1,8 +1,10 @@
+import numpy as np
 import pandas as pd
 import argparse
 import logging
 
 from lisfloodpreprocessing import Config
+from lisfloodpreprocessing.utils import find_conflicts
 from lisfloodpreprocessing.finer_grid import coordinates_fine
 from lisfloodpreprocessing.coarser_grid import coordinates_coarse
 
@@ -19,7 +21,7 @@ def main():
         """
     )
     parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the configuration file')
-    parser.add_argument('-r', '--reservoirs', action='store_true', default=True,
+    parser.add_argument('-r', '--reservoirs', action='store_true', default=False,
                         help='Define the points in the input CSV file as reservoirs')
     args = parser.parse_args()
     
@@ -37,10 +39,23 @@ def main():
     cfg = Config(args.config_file)
     
     # find coordinates in high resolution
-    points_HR = coordinates_fine(cfg, save=False)
+    points_HR = coordinates_fine(cfg, save=True)
+    
+    # find duplicates in high resolution
+    find_conflicts(points_HR,
+                   columns=[f'{var}_{cfg.FINE_RESOLUTION}' for var in ['lat', 'lon']],
+                   save=cfg.OUTPUT_FOLDER_FINE / 'conflicts.shp')
     
     # find coordinates in LISFLOOD
-    coordinates_coarse(cfg, points_HR, reservoirs=args.reservoirs, save=True)
+    points_LR = coordinates_coarse(cfg,
+                                   points_HR,
+                                   reservoirs=args.reservoirs,
+                                   save=True)
+    
+    # find duplicates in LISFLOOD
+    find_conflicts(points_HR,
+                   columns=[f'{var}_{cfg.COARSE_RESOLUTION}' for var in ['lat', 'lon']],
+                   save=cfg.OUTPUT_FOLDER_COARSE / 'conflicts.shp')
 
 if __name__ == "__main__":
     main()
