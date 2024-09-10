@@ -84,7 +84,17 @@ All maps can be provided either in TIFF or NetCDF format.
 
 ##### Outputs
 
-The main output is a new **CSV file** saved in the same directory as the input CSV file and named similarly, but with a suffix indicating the resolution of the LISFLOOD grid. For instance, in the configuration file above the input CSV file is named _stations.csv_ and the resolution of the LISFLOOD grid is 3 arcmin, so the output CSV file will be named _stations_3min.csv_. The CSV contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
+The tool saves the outputs in the folder specified in the configuration file (`output_folder`). Within this folder, the tool will create a series of shapefiles:
+
+* Intermediate results for the finer grid:
+    * `<INPUT_FILENAME>_<FINE_RESOLUTION>.shp` is a point shapefile with the updated location of the input points in the finer grid.
+    * _catchments_<FINE_RESOLUTION>.shp_ is a polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid.
+    
+* Final results for the LISFLOOD grid:
+    * _<INPUT_FILENAME>_<COARSE_RESOLUTION>.shp_ is a point shapefile with the updated location of the input points in the LISFLOOD grid.
+    * _catchments_<COARSE_RESOLUTION>.shp_ is a polygon shapefile with the catchment polygons delineated for each of the input points in the LISFLOOD grid.
+
+The final SHP point layer contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
 
 ```csv
 ID,area,area_3min,area_3sec,lat,lat_3min,lat_3sec,lon,lon_3min,lon_3sec
@@ -93,4 +103,4 @@ ID,area,area_3min,area_3sec,lat,lat_3min,lat_3sec,lon,lon_3min,lon_3sec
 439,37687,37540,37605,48.88,48.925,48.879583,12.747,12.675,12.74625
 ```
 
-Besides, the tool creates **shapefiles** of the catchment polygons derived for both the high and low resolution grids. The shapefiles are saved in two subdirectories inside the `output_folder` directory defined in the configuration file. In each of these subdirectories, there will be one file for each station.
+The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, the tool will create another shapefile (_conflicts_<RESOLUTION>.shp_) with only the conflicting points, so that the user can fix the issue manually.
