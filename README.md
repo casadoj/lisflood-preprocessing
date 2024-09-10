@@ -87,13 +87,13 @@ All maps can be provided either in TIFF or NetCDF format.
 The tool saves the outputs in the folder specified in the configuration file (`output_folder`). Within this folder, the tool will create a series of shapefiles:
 
 * Intermediate results:
-    * *<INPUT_FILENAME>.shp* is a point shapefile with the original location of the input points.
-    * *<INPUT_FILENAME>_<FINE_RESOLUTION>.shp* is a point shapefile with the updated location of the input points in the finer grid.
-    * *catchments_<FINE_RESOLUTION>.shp* is a polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid.
+    * A point shapefile with the original location of the input points. In the example, it will be named *stations.shp*.
+    * A point shapefile with the updated location of the input points in the finer grid. In the example, it will be named *stations_3sec.shp*.
+    * A polygon shapefile with the catchment polygons delineated for each of the input points in the finer grid. In the example, it will be named *catchments_3sec.shp*.
     
 * Final results for the LISFLOOD grid:
-    * *<INPUT_FILENAME>_<COARSE_RESOLUTION>.shp* is a point shapefile with the updated location of the input points in the LISFLOOD grid.
-    * *catchments_<COARSE_RESOLUTION>.shp* is a polygon shapefile with the catchment polygons delineated for each of the input points in the LISFLOOD grid.
+    * A point shapefile with the updated location of the input points in the LISFLOOD grid. In the example, it will be named *stations_3min.shp*.
+    * A polygon shapefile with the catchment polygons delineated for each of the input points in the LISFLOOD grid. In the example, it will be named *catchments_3min.shp*.
 
 The final SHP point layer contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
 
@@ -104,4 +104,4 @@ ID,area,area_3min,area_3sec,lat,lat_3min,lat_3sec,lon,lon_3min,lon_3sec
 439,37687,37540,37605,48.88,48.925,48.879583,12.747,12.675,12.74625
 ```
 
-The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, the tool will create another shapefile (*conflicts_<RESOLUTION>.shp*) with only the conflicting points, so that the user can fix the issue manually.
+The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, the tool will create another shapefile (*conflicts_3min.shp* in the example) with only the conflicting points, so that the user can fix the issue manually.
