@@ -95,6 +95,11 @@ def read_input_files(
     points = pd.read_csv(cfg.POINTS, index_col='ID')
     points.columns = points.columns.str.lower()
     logger.info(f'Table of points correctly read: {cfg.POINTS}')
+    # remove points with missing values
+    mask = points.isnull().any(axis=1)
+    if mask.sum() > 0:
+        points = points[~mask]
+        logger.warning(f'{mask.sum()} points were removed because of missing values')
     # convert to geopandas and export as shapefile
     points = gpd.GeoDataFrame(points,
                               geometry=[Point(xy) for xy in zip(points['lon'], points['lat'])],

@@ -88,12 +88,14 @@ def coordinates_coarse(
 
         # real upstream area
         area_ref = attrs['area']
-
+        if area_ref < cfg.MIN_AREA:
+            logger.warning(f'Skipping point {ID} because its reported catchment area is smaller than {cfg.MIN_AREA} km2')
+            continue
+            
         # coordinates and upstream area in the fine grid
         lat_fine, lon_fine, area_fine = attrs[[f'{col}_{cfg.FINE_RESOLUTION}' for col in ['lat', 'lon', 'area']]]
-
-        if (area_ref < cfg.MIN_AREA) or (area_fine < cfg.MIN_AREA):
-            logger.warning(f'The catchment area of station {ID} is smaller than the minimum of {cfg.MIN_AREA} km2')
+        if area_fine < cfg.MIN_AREA:
+            logger.warning(f'Skipping point {ID} because its catchment area in the smaller grid is smaller than {cfg.MIN_AREA} km2')
             continue
 
         # find ratio

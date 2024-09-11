@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import logging
+from datetime import datetime
 
 from lisfloodpreprocessing import Config, read_input_files
 from lisfloodpreprocessing.utils import find_conflicts
@@ -26,14 +27,20 @@ def main():
     args = parser.parse_args()
     
     # create logger
-    logger = logging.getLogger('correct-coordinates')
+    logger = logging.getLogger('lfcoords')
     logger.setLevel(logging.INFO)
     logger.propagate = False
     log_format = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    # console handler
     c_handler = logging.StreamHandler()
     c_handler.setFormatter(log_format)
     c_handler.setLevel(logging.INFO)
     logger.addHandler(c_handler)
+    # File handler
+    f_handler = logging.FileHandler(f'lfcoords_{datetime.now():%Y%m%d%H%M}.log')
+    f_handler.setFormatter(log_format)
+    f_handler.setLevel(logging.INFO)
+    logger.addHandler(f_handler)
         
     # read configuration
     cfg = Config(args.config_file)
