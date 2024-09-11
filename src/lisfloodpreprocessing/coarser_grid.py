@@ -71,7 +71,7 @@ def coordinates_coarse(
                                       latlon=True)
 
     # boundaries and resolution of the input maps
-    lon_min, lat_min, lon_max, lat_max = np.round(ldd_coarse.rio.bounds(), 6)
+    # lon_min, lat_min, lon_max, lat_max = np.round(ldd_coarse.rio.bounds(), 6)
     cellsize = np.round(np.mean(np.diff(ldd_coarse.x)), 6) # degrees
 
     # extract resolution of the finer grid from 'points'
@@ -88,14 +88,11 @@ def coordinates_coarse(
 
         # real upstream area
         area_ref = attrs['area']
-        if area_ref < cfg.MIN_AREA:
-            logger.warning(f'Skipping point {ID} because its reported catchment area is smaller than {cfg.MIN_AREA} km2')
-            continue
             
         # coordinates and upstream area in the fine grid
         lat_fine, lon_fine, area_fine = attrs[[f'{col}_{cfg.FINE_RESOLUTION}' for col in ['lat', 'lon', 'area']]]
         if area_fine < cfg.MIN_AREA:
-            logger.warning(f'Skipping point {ID} because its catchment area in the smaller grid is smaller than {cfg.MIN_AREA} km2')
+            logger.warning(f'Skipping point {ID} because its catchment area in the finer grid is smaller than {cfg.MIN_AREA} km2')
             continue
 
         # find ratio

@@ -52,6 +52,35 @@ class Config:
         self.MIN_AREA = config['conditions'].get('min_area', 10)
         self.ABS_ERROR = config['conditions'].get('abs_error', 50)
         self.PCT_ERROR = config['conditions'].get('pct_error', 1)
+        
+    def update_config(
+        self,
+        fine_grid: xr.DataArray,
+        coarse_grid: xr.DataArray
+    ):
+        """It extracts the resolution of the finer and coarser grid, updates the respective attributes in the configuration object, and it creates the necessary structure of directories
+
+        Parameters:
+        -----------
+        fine_grid: xarray.DataArray
+            Any map in the fine grid
+        coarse_grid: xarray.DataArray
+            Any map in the coarse grid    
+        """
+
+        # resolution of the finer grid
+        cellsize = np.mean(np.diff(fine_grid.x)) # degrees
+        cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
+        logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
+        self.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
+
+        # resolution of the input maps
+        cellsize = np.round(np.mean(np.diff(coarse_grid.x)), 6) # degrees
+        cellsize_arcmin = int(np.round(cellsize * 60, 0)) # arcmin
+        logger.info(f'The resolution of the coarser grid is {cellsize_arcmin} arcminutes')
+        self.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
+        
+
             
         
         
@@ -95,11 +124,8 @@ def read_input_files(
     points = pd.read_csv(cfg.POINTS, index_col='ID')
     points.columns = points.columns.str.lower()
     logger.info(f'Table of points correctly read: {cfg.POINTS}')
-    # remove points with missing values
-    mask = points.isnull().any(axis=1)
-    if mask.sum() > 0:
-        points = points[~mask]
-        logger.warning(f'{mask.sum()} points were removed because of missing values')
+    points = check_points(cfg, points, ldd_fine)
+    
     # convert to geopandas and export as shapefile
     points = gpd.GeoDataFrame(points,
                               geometry=[Point(xy) for xy in zip(points['lon'], points['lat'])],
@@ -117,37 +143,51 @@ def read_input_files(
     }
     
     # update Config
-    update_config(cfg, ldd_fine, ldd_coarse)
+    cfg.update_config(ldd_fine, ldd_coarse)
     
     return inputs
 
-
-
-def update_config(
+def check_points(
     cfg: Config,
-    fine_grid: xr.DataArray,
-    coarse_grid: xr.DataArray
-):
-    """It extracts the resolution of the finer and coarser grid, updates the respective attributes in the configuration object, and it creates the necessary structure of directories
+    points: pd.DataFrame,
+    ldd: xr.DataArray    
+    ) -> pd.DataFrame:
+    """Removes input points with missing value, catchment area smaller than the predefined threshold, or outside the extent of the input map
     
     Parameters:
     -----------
     cfg: Config
         Configuration object containing file paths and parameters specified in the configuration file.
-    fine_grid: xarray.DataArray
-        Any map in the fine grid
-    coarse_grid: xarray.DataArray
-        Any map in the coarse grid    
+    points: pandas.DataFrame
+        Table of input points with fields 'lat', 'lon' and 'area' (km2)
+    ldd: xarray.DataArray
+        Map of local drainage directions
+        
+    Returns:
+    --------
+    points: pandas.DataFrame
+        The input table in which points with conflicts have been removed
     """
     
-    # resolution of the finer grid
-    cellsize = np.mean(np.diff(fine_grid.x)) # degrees
-    cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
-    logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
-    cfg.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
-    
-    # resolution of the input maps
-    cellsize = np.round(np.mean(np.diff(coarse_grid.x)), 6) # degrees
-    cellsize_arcmin = int(np.round(cellsize * 60, 0)) # arcmin
-    logger.info(f'The resolution of the coarser grid is {cellsize_arcmin} arcminutes')
-    cfg.COARSE_RESOLUTION = f'{cellsize_arcmin}min'
+    # remove points with missing values
+    mask_nan = points.isnull().any(axis=1)
+    if mask_nan.sum() > 0:
+        points = points[~mask_nan]
+        logger.warning(f'{mask_nan.sum()} points were removed because of missing values')
+        
+    # remove points with small catchment area
+    mask_area = points['area'] < cfg.MIN_AREA
+    if mask_area.sum() > 0:
+        points = points[~mask_area]
+        logger.info(f'{mask_area.sum()} points were removed due to their small catchment area')
+        
+    # remove points outside the input LDD map
+    lon_min, lat_min, lon_max, lat_max = np.round(ldd.rio.bounds(), 6)
+    mask_lon = (points.lon < lon_min) | (points.lon > lon_max)
+    mask_lat = (points.lat < lat_min) | (points.lat > lat_max)
+    mask_extent = mask_lon | mask_lat
+    if mask_extent.sum() > 0:
+        points = points[~mask_extent]
+        logger.info(f'{mask_extent.sum()} points were removed because they are outside the input LDD map')
+        
+    return points

@@ -67,9 +67,6 @@ def coordinates_fine(
     cols = ['lat', 'lon', 'area']
     new_cols = sorted([f'{col}_{cfg.FINE_RESOLUTION}' for col in cols])
     points_fine[new_cols] = np.nan
-    
-    # boundaries of the input maps
-    lon_min, lat_min, lon_max, lat_max = np.round(ldd_fine.rio.bounds(), 6)
 
     # create river network
     fdir_fine = pyflwdir.from_array(ldd_fine.data,
@@ -83,15 +80,6 @@ def coordinates_fine(
 
         # reference coordinates and upstream area
         lat_ref, lon_ref, area_ref = attrs[cols]
-        if area_ref < cfg.MIN_AREA:
-            logger.warning(f'Skipping point {ID} because its reported catchment area is smaller than {cfg.MIN_AREA} km2')
-            continue
-        if not lon_min <= lon_ref <= lon_max:
-            logger.warning(f'Skipping point {ID} because its reported longitude is out of the input LDD map')
-            continue
-        if not lat_min <= lat_ref <= lat_max:
-            logger.warning(f'Skipping point {ID} because its reported latitude is out of the input LDD map')
-            continue
 
         # search new coordinates in an increasing range
         ranges = [55, 101, 151]
