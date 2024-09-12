@@ -18,9 +18,10 @@ from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import catchment_polygon, downstream_pixel
 
 # set logger
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO,
+#                     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+# logger = logging.getLogger(__name__)
+logger = logging.getLogger('lfcoords')
 
 def coordinates_coarse(
     cfg: Config,
@@ -62,6 +63,7 @@ def coordinates_coarse(
     """
     
     points = points_fine.copy()
+    n_points = points.shape[0]
     
     # create river network
     fdir_coarse = pyflwdir.from_array(ldd_coarse.data,
@@ -84,7 +86,8 @@ def coordinates_coarse(
     # search range of 5x5 array -> this is where the best point can be found in the coarse grid
     rangexy = np.linspace(-2, 2, 5) * cellsize # arcmin
     polygons_coarse = []
-    for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):
+    pbar = tqdm(points.iterrows(), total=n_points, desc='points')
+    for n, (ID, attrs) in enumerate(pbar, start=1):
 
         # real upstream area
         area_ref = attrs['area']
@@ -168,6 +171,8 @@ def coordinates_coarse(
             
         # update new columns in 'points'
         points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
+        
+        logger.info(f'Point {ID} ({n}/{n_points}) located in the coarser grid')
         
     # concatenate polygons shapefile
     polygons_coarse = pd.concat(polygons_coarse)

@@ -18,9 +18,10 @@ from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import find_pixel, catchment_polygon 
 
 # set logger
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO,
+#                     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+# logger = logging.getLogger(__name__)
+logger = logging.getLogger('lfcoords')
 
 def coordinates_fine(
     cfg: Config,
@@ -64,6 +65,7 @@ def coordinates_fine(
     
     # add columns to the table of points
     points_fine = points.copy()
+    n_points = points.shape[0]
     cols = ['lat', 'lon', 'area']
     new_cols = sorted([f'{col}_{cfg.FINE_RESOLUTION}' for col in cols])
     points_fine[new_cols] = np.nan
@@ -76,7 +78,8 @@ def coordinates_fine(
                                     latlon=True)
     
     polygons_fine = []
-    for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):  
+    pbar = tqdm(points.iterrows(), total=points.shape[0], desc='points')
+    for n, (ID, attrs) in enumerate(pbar, start=1):  
 
         # reference coordinates and upstream area
         lat_ref, lon_ref, area_ref = attrs[cols]
@@ -109,6 +112,8 @@ def coordinates_fine(
         
         # save polygon
         polygons_fine.append(basin_gdf)
+        
+        logger.info(f'Point {ID} ({n}/{n_points}) located in the finer grid')
         
     # concatenate polygons shapefile
     polygons_fine = pd.concat(polygons_fine)
