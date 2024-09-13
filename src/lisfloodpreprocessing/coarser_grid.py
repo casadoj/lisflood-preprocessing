@@ -77,10 +77,11 @@ def coordinates_coarse(
     cellsize = np.round(np.mean(np.diff(ldd_coarse.x)), 6) # degrees
 
     # extract resolution of the finer grid from 'points'
-    cols_fine = [f'{col}_{cfg.FINE_RESOLUTION}' for col in ['area', 'lat', 'lon']]
+    cols = ['area', 'lat', 'lon']
+    cols_fine = [f'{col}_{cfg.FINE_RESOLUTION}' for col in cols]
 
     # add new columns to 'points'
-    cols_coarse = [f'{col}_{cfg.COARSE_RESOLUTION}' for col in ['area', 'lat', 'lon']]
+    cols_coarse = [f'{col}_{cfg.COARSE_RESOLUTION}' for col in cols]
     points[cols_coarse] = np.nan
 
     # search range of 5x5 array -> this is where the best point can be found in the coarse grid
@@ -90,13 +91,10 @@ def coordinates_coarse(
     for n, (ID, attrs) in enumerate(pbar, start=1):
 
         # real upstream area
-        area_ref = attrs['area']
+        area_ref, lat_ref, lon_ref = attrs[cols]
             
         # coordinates and upstream area in the fine grid
-        lat_fine, lon_fine, area_fine = attrs[[f'{col}_{cfg.FINE_RESOLUTION}' for col in ['lat', 'lon', 'area']]]
-        if area_fine < cfg.MIN_AREA:
-            logger.warning(f'Skipping point {ID} because its catchment area in the finer grid is smaller than {cfg.MIN_AREA} km2')
-            continue
+        area_fine, lat_fine, lon_fine = attrs[cols_fine]
 
         # find ratio
         logger.debug('Start search')
@@ -159,6 +157,7 @@ def coordinates_coarse(
                                          name='ID')
         basin_coarse['ID'] = ID
         basin_coarse.set_index('ID', inplace=True)
+        basin_coarse[cols] = area_ref, lat_ref, lon_ref
         basin_coarse[cols_fine] = area_fine, lat_fine, lon_fine
         basin_coarse[cols_coarse] = area_coarse, lat_coarse, lon_coarse
         
@@ -181,6 +180,10 @@ def coordinates_coarse(
     geometry = [Point(xy) for xy in zip(points[f'lon_{cfg.COARSE_RESOLUTION}'], points[f'lat_{cfg.COARSE_RESOLUTION}'])]
     points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
     points.sort_index(axis=1, inplace=True)
+    
+    # # compute error
+    # points['abs_error'] = abs(points[f'area_{cfg.COARSE_RESOLUTION}'] - points['area'])
+    # points['pct_error'] = points.abs_error / points['area'] * 100
     
     if save is True:
         # polygons

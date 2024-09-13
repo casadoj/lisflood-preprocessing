@@ -123,6 +123,10 @@ def coordinates_fine(
     points_fine = gpd.GeoDataFrame(points_fine, geometry=geometry, crs=4326)
     points_fine.sort_index(axis=1, inplace=True)
     
+    # # compute error
+    # points_fine['abs_error'] = abs(points_fine[f'area_{cfg.FINE_RESOLUTION}'] - points_fine['area'])
+    # points_fine['pct_error'] = points_fine.abs_error / points_fine['area'] * 100
+    
     if save is True:
         # polygons
         polygon_shp = cfg.OUTPUT_FOLDER / f'catchments_{cfg.FINE_RESOLUTION}.shp'

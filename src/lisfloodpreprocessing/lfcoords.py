@@ -56,9 +56,12 @@ def main():
                                               save=True)
     
     # find conflicts in high resolution
-    find_conflicts(points_HR,
-                   columns=[f'{var}_{cfg.FINE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
+    conflicts_fine = find_conflicts(points_HR,
+                                    resolution=cfg.FINE_RESOLUTION,
+                                    pct_error=cfg.PCT_ERROR / 2,
+                                    save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
+    if conflicts_fine is not None:
+        points_HR.drop(conflicts_fine.index, axis=0, inplace=True)
     
     # find coordinates in LISFLOOD
     points_LR, polygons_LR = coordinates_coarse(cfg,
@@ -70,9 +73,10 @@ def main():
                                                 save=True)
     
     # find conflicts in LISFLOOD
-    find_conflicts(points_LR,
-                   columns=[f'{var}_{cfg.COARSE_RESOLUTION}' for var in ['lat', 'lon']],
-                   save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.COARSE_RESOLUTION}.shp')
+    conflicts_coarse = find_conflicts(points_LR,
+                                      resolution=cfg.FINE_RESOLUTION,
+                                      pct_error=cfg.PCT_ERROR,
+                                      save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.COARSE_RESOLUTION}.shp')
 
 if __name__ == "__main__":
     main()
