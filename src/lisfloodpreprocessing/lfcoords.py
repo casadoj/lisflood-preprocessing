@@ -74,7 +74,7 @@ def main():
     
     # find conflicts in LISFLOOD
     conflicts_coarse = find_conflicts(points_LR,
-                                      resolution=cfg.FINE_RESOLUTION,
+                                      resolution=cfg.COARSE_RESOLUTION,
                                       pct_error=cfg.PCT_ERROR,
                                       save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.COARSE_RESOLUTION}.shp')
 
