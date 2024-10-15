@@ -1,8 +1,12 @@
 from setuptools import setup, find_packages
 
+def read_version():
+    with open("VERSION") as version_file:
+        return version_file.read().strip()
+    
 setup(
     name='lisflood-preprocessing',
-    version='0.6.0',
+    version=read_version(),
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     entry_points={
@@ -16,6 +20,7 @@ setup(
         'pandas',
         'tqdm',
         'pyflwdir',
+        'pygeos',
         'pyyaml',
         'rioxarray',
         'xarray',
