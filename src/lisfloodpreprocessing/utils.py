@@ -89,7 +89,7 @@ def find_pixel(
 
     # the new location is that with the smallest error
     min_error = error.where(error == error.min(), drop=True)
-    lat_new, lon_new = [min_error[coord].item() for coord in ['y', 'x']]
+    lat_new, lon_new = [min_error[coord][0].item() for coord in ['y', 'x']]
     
     return lat_new, lon_new, min_error.item()
 
