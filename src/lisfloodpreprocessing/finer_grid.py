@@ -80,40 +80,43 @@ def coordinates_fine(
     polygons_fine = []
     pbar = tqdm(points.iterrows(), total=points.shape[0], desc='points')
     for n, (ID, attrs) in enumerate(pbar, start=1):  
-
-        # reference coordinates and upstream area
-        lat_ref, lon_ref, area_ref = attrs[cols]
-
-        # search new coordinates in an increasing range
-        ranges = [55, 101, 151]
-        penalties = [500, 500, 1000]
-        factors = [2, .5, .25]
-        acceptable_errors = [50, 80, np.nan]
-        for rangexy, penalty, factor, max_error in zip(ranges, penalties, factors, acceptable_errors):
-            logger.debug(f'Set range to {rangexy}')
-            lat, lon, error = find_pixel(upstream_fine, lat_ref, lon_ref, area_ref, rangexy=rangexy, penalty=penalty, factor=factor)
-            if error <= max_error:
-                break
-
-        # update new columns in 'points_fine'
-        points_fine.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
-
-        # boolean map of the catchment associated to the corrected coordinates
-        basin_arr = fdir_fine.basins(xy=(lon, lat)).astype(np.int32)
-
-        # vectorize the boolean map into geopandas
-        basin_gdf = catchment_polygon(basin_arr.astype(np.int32),
-                                      transform=ldd_fine.rio.transform(),
-                                      crs=ldd_fine.rio.crs,
-                                      name='ID')
-        basin_gdf['ID'] = ID
-        basin_gdf[cols] = attrs[cols]
-        basin_gdf.set_index('ID', inplace=True)
         
-        # save polygon
-        polygons_fine.append(basin_gdf)
-        
-        logger.info(f'Point {ID} ({n}/{n_points}) located in the finer grid')
+        try:
+            # reference coordinates and upstream area
+            lat_ref, lon_ref, area_ref = attrs[cols]
+
+            # search new coordinates in an increasing range
+            ranges = [55, 101, 151]
+            penalties = [500, 500, 1000]
+            factors = [2, .5, .25]
+            acceptable_errors = [50, 80, np.nan]
+            for rangexy, penalty, factor, max_error in zip(ranges, penalties, factors, acceptable_errors):
+                logger.debug(f'Set range to {rangexy}')
+                lat, lon, error = find_pixel(upstream_fine, lat_ref, lon_ref, area_ref, rangexy=rangexy, penalty=penalty, factor=factor)
+                if error <= max_error:
+                    break
+
+            # update new columns in 'points_fine'
+            points_fine.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
+
+            # boolean map of the catchment associated to the corrected coordinates
+            basin_arr = fdir_fine.basins(xy=(lon, lat)).astype(np.int32)
+
+            # vectorize the boolean map into geopandas
+            basin_gdf = catchment_polygon(basin_arr.astype(np.int32),
+                                          transform=ldd_fine.rio.transform(),
+                                          crs=ldd_fine.rio.crs,
+                                          name='ID')
+            basin_gdf['ID'] = ID
+            basin_gdf[cols] = attrs[cols]
+            basin_gdf.set_index('ID', inplace=True)
+
+            # save polygon
+            polygons_fine.append(basin_gdf)
+
+            logger.info(f'Point {ID} ({n}/{n_points}) located in the finer grid')
+        except Exception as e:
+            logger.error(f'Point {ID} could not be located in the finer grid: {e}')
         
     # concatenate polygons shapefile
     polygons_fine = pd.concat(polygons_fine)
