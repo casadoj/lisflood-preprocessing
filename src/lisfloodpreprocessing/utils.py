@@ -89,7 +89,12 @@ def find_pixel(
 
     # the new location is that with the smallest error
     min_error = error.where(error == error.min(), drop=True)
-    lat_new, lon_new = [min_error[coord][0].item() for coord in ['y', 'x']]
+    if min_error.size == 1:
+        lat_new, lon_new = [min_error[coord].item() for coord in ['y', 'x']]
+    else:
+        idx = np.argwhere(~np.isnan(min_error.data.flatten()))[0][0]
+        x_idx, y_idx = np.unravel_index(idx, min_error.shape)
+        lat_new, lon_new = min_error.y.data[y_idx], min_error.x.data[x_idx]
     
     return lat_new, lon_new, min_error.item()
 
