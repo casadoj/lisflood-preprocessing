@@ -58,7 +58,7 @@ def main():
     # find conflicts in high resolution
     conflicts_fine = find_conflicts(points_HR,
                                     resolution=cfg.FINE_RESOLUTION,
-                                    pct_error=cfg.PCT_ERROR / 2,
+                                    pct_error=cfg.PCT_ERROR,
                                     save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
     if conflicts_fine is not None:
         points_HR.drop(conflicts_fine.index, axis=0, inplace=True)
