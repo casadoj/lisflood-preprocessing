@@ -89,89 +89,92 @@ def coordinates_coarse(
     polygons_coarse = []
     pbar = tqdm(points.iterrows(), total=n_points, desc='points')
     for n, (ID, attrs) in enumerate(pbar, start=1):
-
-        # real upstream area
-        area_ref, lat_ref, lon_ref = attrs[cols]
-            
-        # coordinates and upstream area in the fine grid
-        area_fine, lat_fine, lon_fine = attrs[cols_fine]
-
-        # find ratio
-        logger.debug('Start search')
-        inter_vs_union, area_ratio, area_lisf = [], [], []
-        for Δlat in rangexy:
-            for Δlon in rangexy:
-                lon = lon_fine + Δlon
-                lat = lat_fine + Δlat
-                basin = catchment_polygon(fdir_coarse.basins(xy=(lon, lat)).astype(np.int32),
-                                          transform=ldd_coarse.rio.transform(), 
-                                          crs=ldd_coarse.rio.crs)
-
-                # calculate union and intersection of shapes
-                intersection = gpd.overlay(polygons_fine.loc[[ID]], basin, how='intersection')
-                union = gpd.overlay(polygons_fine.loc[[ID]], basin, how='union')
-                inter_vs_union.append(intersection.area.sum() / union.area.sum())
-
-                # get upstream area (km2) of coarse grid (LISFLOOD)
-                area = upstream_coarse.sel(x=lon, y=lat, method='nearest').item() * 1e-6
-                area_lisf.append(area)
-
-                # ratio between reference and coarse area
-                if area_ref == 0 or area == 0:
-                    ratio = 0
-                else:
-                    ratio = area_ref / area if area_ref < area else area / area_ref
-                area_ratio.append(ratio)
-        logger.debug('End search')
-
-        # maximum of shape similarity and upstream area accordance
-        i_shape = np.argmax(inter_vs_union)
-        area_shape = area_lisf[i_shape]
-        i_centre = int(len(rangexy)**2 / 2) # middle point
-        area_centre = area_lisf[i_centre]           
-        # use middle point if errors are small
-        abs_error = abs(area_shape - area_centre)
-        pct_error = 100 * abs(1 - area_centre / area_shape)
-        if (abs_error <= cfg.ABS_ERROR) and (pct_error <= cfg.PCT_ERROR):
-            i_shape = i_centre
-            area_shape = area_centre
-
-        #i_ratio = np.argmax(area_ratio)          
-
-        # coordinates in the fine resolution
-        i = i_shape // len(rangexy)
-        j = i_shape % len(rangexy)
-        lat = lat_fine + rangexy[i]
-        lon = lon_fine + rangexy[j]
-
-        # coordinates and upstream area on coarse resolution
-        area = upstream_coarse.sel(x=lon, y=lat, method='nearest')
-        area_coarse = area.item() * 1e-6
-        lon_coarse = area.x.item()
-        lat_coarse = area.y.item()
-
-        # derive catchment polygon from the selected coordinates
-        basin_coarse = catchment_polygon(fdir_coarse.basins(xy=(lon_coarse, lat_coarse)).astype(np.int32),
-                                         transform=ldd_coarse.rio.transform(), 
-                                         crs=ldd_coarse.rio.crs,
-                                         name='ID')
-        basin_coarse['ID'] = ID
-        basin_coarse.set_index('ID', inplace=True)
-        basin_coarse[cols] = area_ref, lat_ref, lon_ref
-        basin_coarse[cols_fine] = area_fine, lat_fine, lon_fine
-        basin_coarse[cols_coarse] = area_coarse, lat_coarse, lon_coarse
         
-        # save polygon
-        polygons_coarse.append(basin_coarse)
-        
-        # move the result one pixel downstream, in case of reservoir
-        if reservoirs:
-            lat_coarse, lon_coarse = downstream_pixel(lat_coarse, lon_coarse, ldd_coarse)
-            
-        # update new columns in 'points'
-        points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
-        
-        logger.info(f'Point {ID} ({n}/{n_points}) located in the coarser grid')
+        try:
+            # real upstream area
+            area_ref, lat_ref, lon_ref = attrs[cols]
+
+            # coordinates and upstream area in the fine grid
+            area_fine, lat_fine, lon_fine = attrs[cols_fine]
+
+            # find ratio
+            logger.debug('Start search')
+            inter_vs_union, area_ratio, area_lisf = [], [], []
+            for Δlat in rangexy:
+                for Δlon in rangexy:
+                    lon = lon_fine + Δlon
+                    lat = lat_fine + Δlat
+                    basin = catchment_polygon(fdir_coarse.basins(xy=(lon, lat)).astype(np.int32),
+                                              transform=ldd_coarse.rio.transform(), 
+                                              crs=ldd_coarse.rio.crs)
+
+                    # calculate union and intersection of shapes
+                    intersection = gpd.overlay(polygons_fine.loc[[ID]], basin, how='intersection')
+                    union = gpd.overlay(polygons_fine.loc[[ID]], basin, how='union')
+                    inter_vs_union.append(intersection.area.sum() / union.area.sum())
+
+                    # get upstream area (km2) of coarse grid (LISFLOOD)
+                    area = upstream_coarse.sel(x=lon, y=lat, method='nearest').item() * 1e-6
+                    area_lisf.append(area)
+
+                    # ratio between reference and coarse area
+                    if area_ref == 0 or area == 0:
+                        ratio = 0
+                    else:
+                        ratio = area_ref / area if area_ref < area else area / area_ref
+                    area_ratio.append(ratio)
+            logger.debug('End search')
+
+            # maximum of shape similarity and upstream area accordance
+            i_shape = np.argmax(inter_vs_union)
+            area_shape = area_lisf[i_shape]
+            i_centre = int(len(rangexy)**2 / 2) # middle point
+            area_centre = area_lisf[i_centre]           
+            # use middle point if errors are small
+            abs_error = abs(area_shape - area_centre)
+            pct_error = 100 * abs(1 - area_centre / area_shape)
+            if (abs_error <= cfg.ABS_ERROR) and (pct_error <= cfg.PCT_ERROR):
+                i_shape = i_centre
+                area_shape = area_centre
+
+            #i_ratio = np.argmax(area_ratio)          
+
+            # coordinates in the fine resolution
+            i = i_shape // len(rangexy)
+            j = i_shape % len(rangexy)
+            lat = lat_fine + rangexy[i]
+            lon = lon_fine + rangexy[j]
+
+            # coordinates and upstream area on coarse resolution
+            area = upstream_coarse.sel(x=lon, y=lat, method='nearest')
+            area_coarse = area.item() * 1e-6
+            lon_coarse = area.x.item()
+            lat_coarse = area.y.item()
+
+            # derive catchment polygon from the selected coordinates
+            basin_coarse = catchment_polygon(fdir_coarse.basins(xy=(lon_coarse, lat_coarse)).astype(np.int32),
+                                             transform=ldd_coarse.rio.transform(), 
+                                             crs=ldd_coarse.rio.crs,
+                                             name='ID')
+            basin_coarse['ID'] = ID
+            basin_coarse.set_index('ID', inplace=True)
+            basin_coarse[cols] = area_ref, lat_ref, lon_ref
+            basin_coarse[cols_fine] = area_fine, lat_fine, lon_fine
+            basin_coarse[cols_coarse] = area_coarse, lat_coarse, lon_coarse
+
+            # save polygon
+            polygons_coarse.append(basin_coarse)
+
+            # move the result one pixel downstream, in case of reservoir
+            if reservoirs:
+                lat_coarse, lon_coarse = downstream_pixel(lat_coarse, lon_coarse, ldd_coarse)
+
+            # update new columns in 'points'
+            points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
+
+            logger.info(f'Point {ID} ({n}/{n_points}) located in the coarser grid')
+        except Exception as e:
+            logger.error(f'Point {ID} could not be located in the coarser grid: {e}')
         
     # concatenate polygons shapefile
     polygons_coarse = pd.concat(polygons_coarse)
