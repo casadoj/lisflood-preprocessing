@@ -99,6 +99,7 @@ def find_pixel(
     return lat_new, lon_new, min_error.item()
 
 
+
 def downstream_pixel(
     lat: float,
     lon: float,
@@ -200,6 +201,43 @@ def catchment_polygon(
     
     return gdf
 
+
+
+# def find_conflicts(
+#     gdf: gpd.GeoDataFrame,
+#     columns: List,
+#     save: Optional[Union[Path, str]] = None
+# ) -> gpd.GeoDataFrame:
+#     """Find duplicates in the new point layer
+    
+#     Parameters:
+#     -----------
+#     gdf: geopandas.GeoDataFrame
+#         Point layer resulting from `coordinates_fine` or `coordinates_coarse`
+#     columns: list
+#         List of columns in "gdf" to test for duplicates
+#     save: pathlib.Path or string (optional)
+#         If provided, file name of the shapefile of conflicting points
+        
+#     Returns:
+#     --------
+#     duplicates: geopandas.GeoDataFrame (optional)
+#         Subset of "gdf" with duplicates. Only if "save" is None.
+#     """
+    
+#     mask = gdf.duplicated(subset=columns, keep=False)
+#     duplicates = gdf[mask]
+    
+#     if duplicates.shape[0] > 0:
+#         n_conflicts = len(duplicates[columns[0]].unique())
+#         logger.warning(f'There are {n_conflicts} conflicts in which reservoirs are located at the same pixel in the finer grid')
+        
+#         if save is not None:
+#             duplicates.to_file(save)
+#             logger.info(f'The conflicting points were saved in {save}')
+#         else:
+#             return duplicates
+        
         
 def find_conflicts(
     points: gpd.GeoDataFrame,
@@ -233,7 +271,7 @@ def find_conflicts(
     duplicates['conflict'] = 'points overlap'
     if duplicates.shape[0] > 0:
         n_duplicates = len(duplicates[columns[0]].unique())
-        logger.warning(f'There are {n_duplicates} conflicts in which points are located at the same pixel in the finer grid')
+        logger.warning(f'There are {n_duplicates} conflicts in which reservoirs are located at the same pixel in the finer grid')
         
     # errors in the delineated area
     assert 0 <= pct_error <= 100, '"pct_error" must be a value between 0 and 100'
@@ -244,7 +282,7 @@ def find_conflicts(
     deviations['conflict'] = 'large area error'
     n_deviations = deviations.shape[0]
     if n_deviations > 0:
-        logger.warning(f'There are {n_deviations} conflicts in which the new points area has a large error')
+        logger.warning(f'There are {n_deviations} conflicts in which the new reservoirs area has a large error')
     
     # combine
     if (duplicates.shape[0] > 0) or (n_deviations > 0):

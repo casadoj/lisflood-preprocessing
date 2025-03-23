@@ -22,6 +22,8 @@ def main():
         """
     )
     parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the configuration file')
+    parser.add_argument('-r', '--reservoirs', action='store_true', default=False,
+                        help='Define the points in the input CSV file as reservoirs')
     args = parser.parse_args()
     
     # create logger
@@ -67,6 +69,7 @@ def main():
                                                 polygons_fine=polygons_HR,
                                                 ldd_coarse=inputs['ldd_coarse'],
                                                 upstream_coarse=inputs['upstream_coarse'],
+                                                reservoirs=args.reservoirs,
                                                 save=True)
     
     # find conflicts in LISFLOOD

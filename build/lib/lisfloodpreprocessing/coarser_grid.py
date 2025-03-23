@@ -29,6 +29,7 @@ def coordinates_coarse(
     polygons_fine: gpd.GeoDataFrame,
     ldd_coarse: xr.DataArray,
     upstream_coarse: xr.DataArray,
+    reservoirs: bool = False,
     save: bool = False
 ) -> Optional[gpd.GeoDataFrame]:
     """
@@ -48,6 +49,8 @@ def coordinates_coarse(
         Map of local drainaige directions in the coarse grid
     upstream_coarse: xarray.DataArray
         Map of upstream area (m2) in the coarse grid
+    reservoirs: bool
+        Whether the points are reservoirs or not. If True, the resulting coordinates refer to one pixel downstream of the actual solution, a deviation required by the LISFLOOD reservoir simulation
     save: boolean
         If True, the updated table of points is exported as a shapefile.
 
@@ -161,6 +164,10 @@ def coordinates_coarse(
 
             # save polygon
             polygons_coarse.append(basin_coarse)
+
+            # move the result one pixel downstream, in case of reservoir
+            if reservoirs:
+                lat_coarse, lon_coarse = downstream_pixel(lat_coarse, lon_coarse, ldd_coarse)
 
             # update new columns in 'points'
             points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
