@@ -1,3 +1,7 @@
+<img src="./images/copernicus_logo.png" alt="Logo Copernicus" width="280" align="center"><img src="./images/copernicus_emergency_management.png" alt="Logo CEMS" width="200" align="center">
+
+![Python_3.11](https://img.shields.io/badge/Python-%3E%3D3.11-blue?labelColor=343b41) &nbsp; [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 # Lisflood preprocessing
 
 This repository contains tools useful for pre-processing the inputs of the hydrological model [LISFLOOD-OS](https://ec-jrc.github.io/lisflood/). It is part of the outcomes of the European project SEED-FD (Project - HORIZON-CL4-2023-SPACE-01).
