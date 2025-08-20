@@ -1,5 +1,8 @@
 import os
-os.environ['USE_PYGEOS'] = '0'
+import logging
+from typing import Tuple, Optional, Union
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -7,15 +10,11 @@ import xarray as xr
 from affine import Affine
 from rasterio import features
 from pyproj.crs import CRS
-from typing import Tuple, List, Optional, Union
-from pathlib import Path
-import logging
+
+os.environ['USE_PYGEOS'] = '0'
 
 # set logger
-# logging.basicConfig(level=logging.INFO,
-#                     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-# logger = logging.getLogger(__name__)
-logger = logging.getLogger('lfcoords')
+logger = logging.getLogger(__name__)
 
 
 def find_pixel(
@@ -23,14 +22,15 @@ def find_pixel(
     lat: int,
     lon: int,
     area: float,
-    rangexy: int = 55,
+    range_xy: int = 55,
     penalty: int = 500,
     factor: int = 2,
     distance_scaler: float = .92,
     error_threshold: int = 50
-) -> Tuple:
+) -> Tuple[float, float, float]:
     """
-    Find the coordinates of the pixel in the upstream map with a smaller error compared with a reference area.
+    Finds the coordinates of the pixel in the upstream map with a smaller 
+    error compared with a reference area.
     
     Parameters:
     -----------
@@ -42,7 +42,7 @@ def find_pixel(
         The original longitude value.
     area: float
         The reference area to calculate percent error.
-    rangexy: int, optional
+    range_xy: int, optional
         The range in both x and y directions to search for the new location.
     penalty: int, optional
         The penalty value to add to the distance when the percent error is too high.
@@ -55,28 +55,34 @@ def find_pixel(
     
     Returns:
     --------
-    lat_new : float
-        The latitude of the new location.
-    lon_new : float
-        The longitude of the new location.
-    min_error : float
-        The minimum error value at the new location.
+    Tuple[float, float, float]
+        A tuple containing:
+        - lat_new : float
+            The latitude of the new location.
+        - lon_new : float
+            The longitude of the new location.
+        - min_error : float
+            The minimum error value at the new location.
     """
 
     # find coordinates of the nearest pixel in the map
     nearest_pixel = upstream.sel(y=lat, x=lon, method='nearest')
-    lat_orig, lon_orig = [nearest_pixel[coord].item() for coord in ['y', 'x']]
+    lat_orig, lon_orig = (nearest_pixel[coord].item() for coord in ['y', 'x'])
 
     # extract subset of the upstream map
     cellsize = np.mean(np.diff(upstream.x.data))
-    delta = rangexy * cellsize + 1e-6
+    delta = range_xy * cellsize + 1e-6
     upstream_sel = upstream.sel(y=slice(lat_orig + delta, lat_orig - delta),
                                 x=slice(lon_orig - delta, lon_orig + delta))
     
     # distance from the original pixel (in pixels)
-    i = np.arange(-rangexy, rangexy + 1)
+    i = np.arange(-range_xy, range_xy + 1)
     ii, jj = np.meshgrid(i, i)
-    distance = xr.DataArray(data=np.sqrt(ii**2 + jj**2) * distance_scaler, coords=upstream_sel.coords, dims=upstream_sel.dims)
+    distance = xr.DataArray(
+        data=np.sqrt(ii**2 + jj**2) * distance_scaler, 
+        coords=upstream_sel.coords, 
+        dims=upstream_sel.dims
+    )
 
     # percent error in catchment area
     error = 100 * abs(area - upstream_sel) / area
@@ -84,7 +90,7 @@ def find_pixel(
     # penalise if error is too big
     distance = distance.where(error <= error_threshold, distance + penalty)
 
-    # update error based on distance (every pixel deviation is a 'factor' increase in the error)
+    # update error based on distance
     error += factor * distance
 
     # the new location is that with the smallest error
@@ -103,8 +109,9 @@ def downstream_pixel(
     lat: float,
     lon: float,
     ldd: xr.DataArray
-) -> (float, float):
-    """It finds the downstream coordinates of a given point
+) -> Tuple[float, float]:
+    """
+    Finds the downstream coordinates of a given point.
     
     Parameteres:
     ------------
@@ -117,10 +124,9 @@ def downstream_pixel(
         
     Returns:
     --------
-    lat: float
-        latitude of the inmediate downstream pixel
-    lon: float
-        longitued of the inmediate downstream pixel
+    Tuple[float, float]
+        A tuple containing the latitude and longitude of the immediate
+        downstream pixel.
     """
     
     # drainage direction of the input point
@@ -156,7 +162,7 @@ def catchment_polygon(
     name: str = "catchment"
 ) -> gpd.GeoDataFrame:
     """
-    Convert a boolean 2D array of catchment extent to a GeoDataFrame.
+    Converts a boolean 2D array of catchment extent to a GeoDataFrame.
     
     Parameters:
     -----------
@@ -171,7 +177,7 @@ def catchment_polygon(
     
     Returns:
     --------
-    gdf : geopandas.GeoDataFrame
+    geopandas.GeoDataFrame
         A GeoDataFrame containing the vectorized geometries.
     """
     
@@ -207,22 +213,27 @@ def find_conflicts(
     pct_error: float = 30, 
     save: Optional[Union[Path, str]] = None
 ) -> gpd.GeoDataFrame:
-    """Finds conflicts in the new point layer, either due to points that overlap, or large cathment area errors
+    """
+    Finds conflicts in the new point layer, either due to points that overlap,
+    or large catchment area errors.
     
     Parameters:
     -----------
     points: geopandas.GeoDataFrame
         Point layer resulting from `coordinates_fine` or `coordinates_coarse`
     resolution: str
-        Spatial resolution of the fields in "points" to be checked. For instance, '3min' will check the coordinates in the fields 'lat_3min' and 'lon_3min', and the catchment area in the field 'area_3min'
+        Spatial resolution of the fields in "points" to be checked. For instance, 
+        '3min' will check the coordinates in the fields 'lat_3min' and 'lon_3min', 
+        and the catchment area in the field 'area_3min'
     pct_error: float
-        Maximum percentage error allowed in the derived catchment area compared with the reference. It must be a value between 0 and 100
+        Maximum percentage error allowed in the derived catchment area compared 
+        with the reference. It must be a value between 0 and 100
     save: pathlib.Path or string (optional)
         If provided, file name of the shapefile of conflicting points
         
     Returns:
     --------
-    duplicates: geopandas.GeoDataFrame
+    geopandas.GeoDataFrame
         Subset of "points" with conflicts. Only if "save" is None.
     """  
         
@@ -253,3 +264,5 @@ def find_conflicts(
             conflicts.to_file(save)
             logger.info(f'The conflicting points were saved in {save}')
         return conflicts
+
+    return gpd.GeoDataFrame() # return an empty GeoDataFrame if no conflicts found
