@@ -102,7 +102,7 @@ def coordinates_fine(
                 name='ID'
             )
             basin_gdf['ID'] = point_id
-            basin_gdf[cols] = attrs[cols]
+            basin_gdf[cols] = attrs[cols].values
             basin_gdf.set_index('ID', inplace=True)
 
             # save polygon
