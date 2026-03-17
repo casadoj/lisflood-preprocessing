@@ -1,4 +1,3 @@
-import os
 import logging
 from typing import Tuple, Optional, Union
 from pathlib import Path
@@ -11,7 +10,6 @@ from affine import Affine
 from rasterio import features
 from pyproj.crs import CRS
 
-os.environ['USE_PYGEOS'] = '0'
 
 # set logger
 logger = logging.getLogger(__name__)

@@ -1,6 +1,4 @@
-import os
 import logging
-from pathlib import Path
 from typing import Optional, Union, Tuple
 import warnings
 
@@ -14,7 +12,6 @@ from tqdm import tqdm
 from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import catchment_polygon
 
-os.environ['USE_PYGEOS'] = '0'
 warnings.filterwarnings("ignore")
 
 # set logger
@@ -81,7 +78,8 @@ def coordinates_coarse(
     points_coarse[cols_coarse] = np.nan
 
     # search range of 5x5 array
-    range_xy = np.linspace(-2, 2, 5) * cellsize # arcmin
+    n_cell = 2 # number of cells to search in each direction
+    range_xy = np.arange(-n_cell, n_cell + 1) * cellsize # arcmin
     polygons_coarse = []
     for point_id, attrs in tqdm(points_coarse.iterrows(), total=n_points, desc='points'):
         try:
