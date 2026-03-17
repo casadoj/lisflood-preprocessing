@@ -1,6 +1,4 @@
-import os
 import logging
-from pathlib import Path
 from typing import Optional, Union, Tuple
 import warnings
 
@@ -14,7 +12,6 @@ from tqdm import tqdm
 from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import catchment_polygon
 
-os.environ['USE_PYGEOS'] = '0'
 warnings.filterwarnings("ignore")
 
 # set logger

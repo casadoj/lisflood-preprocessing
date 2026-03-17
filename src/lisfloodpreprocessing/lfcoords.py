@@ -3,10 +3,6 @@ import argparse
 import logging
 from datetime import datetime
 
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-
 from lisfloodpreprocessing import Config, read_input_files
 from lisfloodpreprocessing.utils import find_conflicts
 from lisfloodpreprocessing.finer_grid import coordinates_fine

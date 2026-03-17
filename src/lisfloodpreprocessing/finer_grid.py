@@ -1,7 +1,5 @@
-import os
 import logging
-from pathlib import Path
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple
 import warnings
 
 import numpy as np
@@ -14,7 +12,6 @@ from tqdm import tqdm
 from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import find_pixel, catchment_polygon
 
-os.environ['USE_PYGEOS'] = '0'
 warnings.filterwarnings("ignore")
 
 # set logger

@@ -1,4 +1,3 @@
-import os
 import logging
 import yaml
 from pathlib import Path
@@ -11,9 +10,6 @@ import rioxarray as rxr
 
 # set logger
 logger = logging.getLogger(__name__)
-
-# Use a module-level constant for the environment variable setting
-os.environ['USE_PYGEOS'] = '0'
 
 class Config:
     """
