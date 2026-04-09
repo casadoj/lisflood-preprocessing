@@ -11,7 +11,7 @@ setup(
     package_dir={'': 'src'},
     entry_points={
         'console_scripts': [
-            'lfcoords=lisfloodpreprocessing.lfcoords:main',
+            'lfcoords=lisfloodpreprocessing.main:main',
         ],
     },
     install_requires=[
